@@ -1,0 +1,57 @@
+{
+  "name": "@estebanforge/pi-rust-review",
+  "version": "1.0.0",
+  "description": "Rust code-review tool for Pi. Grades your git diffs against a curated code-smells rubric (each entry: anti-pattern plus idiomatic fix) and returns categorized findings (Bug / Suggestion / Nit / Good pattern) with an Approve or Request-Changes verdict. Not a linter; pairs with cargo clippy.",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "rust",
+    "rustlang",
+    "code-review",
+    "code-reviewer",
+    "code-smells",
+    "anti-patterns",
+    "rubric",
+    "checklist",
+    "git-diff"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EstebanForge/pi-rust-review.git"
+  },
+  "type": "module",
+  "files": [
+    "extensions",
+    "README.md"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@earendil-works/pi-ai": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
+    },
+    "typebox": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.8.0"
+  }
+}
