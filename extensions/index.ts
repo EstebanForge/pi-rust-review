@@ -99,11 +99,14 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			// Narrow to the caller's file/dir, else default to all .rs files.
+// For directories: pass the bare path so git prefix-matches; the prior
+// `dir/**/*.rs` form silently matched nothing in git (slash before `**`
+// blocks the recursion). For files: literal match.
 			const pathspec = !filePath
 				? GLOB
 				: filePath.endsWith(EXT)
 					? filePath
-					: filePath.replace(/\/+$/, "") + "/**/*" + EXT;
+					: filePath.replace(/\/+$/, "");
 			const gitArgs = [...GIT_PREFIX[mode], ...(ref ? [ref] : []), "--", pathspec];
 
 			const result = await pi.exec("git", gitArgs, { signal, timeout: 30000 });
@@ -193,7 +196,7 @@ export default function (pi: ExtensionAPI) {
 			summary += "\n" + theme.fg("dim", "─".repeat(50));
 			const content = result.content[0];
 			if (content?.type === "text") {
-				const statLines = content.text.split("\n").filter((line: string) => line.includes("|") && line.includes("+")).slice(0, 8);
+				const statLines = content.text.split("\n").filter((line: string) => line.includes("|") && /[+-]/.test(line)).slice(0, 8);
 				for (const line of statLines) summary += "\n" + theme.fg("dim", "  " + line.trim());
 				if (statLines.length === 0) summary += "\n" + theme.fg("dim", "  (expand for diff + guide)");
 			}

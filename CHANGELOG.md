@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.1 — 2026-06-24
+
+### Fixed
+- **Pathspec bug**: when `path` was a directory, the tool built
+  `dir/**/*.rs`, which silently matched nothing in git (slash before `**`
+  blocks recursion). Directory paths now pass through bare so git
+  prefix-matches.
+- **Stat-line heuristic** in `renderResult` now matches deletion-only diffs
+  (rows like ` file.rs | 2 --` are now picked up; previously the `+` check
+  filtered them out and the TUI silently showed the fallback).
+
 ## 1.0.0 — 2026-06-19
 
 Initial release. A Pi-native Rust code review tool, sibling to
