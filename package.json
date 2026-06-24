@@ -16,6 +16,11 @@
     "git-diff"
   ],
   "license": "MIT",
+  "author": {
+    "name": "EstebanForge",
+    "email": "esteban@attitude.cl",
+    "url": "https://actitud.xyz"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EstebanForge/pi-rust-review.git"
