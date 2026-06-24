@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2 — 2026-06-24
+
+### Fixed
+- **Directory pathspec leaked non-Rust files**: the 1.0.1 fix made directory
+  `path` pass through bare so git prefix-matches, but that includes every file
+  under the dir (`.ts`, `.json`, etc.), feeding non-Rust diffs into a Rust
+  review. Directory paths now use `:(glob)dir/**/*.rs`, which filters to Rust
+  AND recurses.
+
 ## 1.0.1 — 2026-06-24
 
 ### Fixed
