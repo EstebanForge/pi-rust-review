@@ -21,7 +21,7 @@ import type { ExtensionAPI, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Text } from "@earendil-works/pi-tui";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -63,6 +63,21 @@ interface RustReviewDetails {
 	truncated: boolean;
 }
 
+// Walk up from `start` to the nearest enclosing .git (directory or file).
+// Returns the containing dir, or null if none — meaning there's no repo to
+// anchor to (the workspace root isn't in one and no ancestor is either).
+function findGitRoot(start: string): string | null {
+	let dir = start;
+	// Guard against infinite loop on pathological input.
+	for (let i = 0; i < 64; i++) {
+		if (existsSync(path.join(dir, ".git"))) return dir;
+		const parent = path.dirname(dir);
+		if (parent === dir) break; // filesystem root
+		dir = parent;
+	}
+	return null;
+}
+
 export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "rust_review",
@@ -86,7 +101,7 @@ export default function (pi: ExtensionAPI) {
 				description: "working=unstaged, staged=cached, commit=specific SHA, range=two refs, all=HEAD diff",
 			}),
 			ref: Type.Optional(Type.String({ description: "Commit SHA, branch, or range (e.g. main..HEAD). Required for commit/range." })),
-			path: Type.Optional(Type.String({ description: "Limit to file or directory (e.g. src/auth)" })),
+			path: Type.Optional(Type.String({ description: "Limit to file or directory (e.g. src/auth). Git runs from this path, so it can point into a nested repo." })),
 		}),
 		async execute(_toolCallId, params, signal, _onUpdate, _ctx) {
 			const { mode, ref, path: filePath } = params;
@@ -98,20 +113,56 @@ export default function (pi: ExtensionAPI) {
 				throw new Error(`ref required for ${mode} mode`);
 			}
 
-			// Narrow to the caller's file/dir, else default to all .rs files.
-			// For directories: `:(glob)dir/**/*.rs` filters to Rust AND recurses
-			// (a bare dir leaks non-Rust files; plain `dir/**/*.rs` matches nothing
-			// without the :(glob) magic, since the slash before `**` blocks it).
-			// For files: literal match.
-			const pathspec = !filePath
-				? GLOB
-				: filePath.endsWith(EXT)
-					? filePath
-					: `:(glob)${filePath.replace(/\/+$/, "")}/**/*${EXT}`;
+			// Anchor the git invocation to the caller's path. A plain pathspec alone
+			// is insufficient: git must be *run* from inside the target repo, otherwise
+			// a `path` pointing into a nested repo (common in workspaces whose root is
+			// not itself a git repo) yields 'not a git repository'.
+			//
+			// Strategy: resolve `path`, stat it, set `cwd` on the exec, and rebase the
+			// pathspec relative to that cwd. Git pathspecs treat `*` as crossing `/`,
+			// so plain `*.rs` recurses under cwd — no :(glob) magic needed once we're
+			// standing in the right directory.
+			let gitCwd = process.cwd();
+			let pathspec = GLOB; // '*.rs' — recurses under cwd by default
+			if (filePath) {
+				const resolved = path.resolve(gitCwd, filePath);
+				try {
+					if (statSync(resolved).isDirectory()) {
+						gitCwd = resolved; // run git from inside the target dir/repo
+						pathspec = GLOB; // everything Rust beneath it
+					} else {
+						gitCwd = path.dirname(resolved);
+						pathspec = path.basename(resolved); // literal file
+					}
+				} catch {
+					// Path doesn't exist on disk (uncommitted deletion, typo, or a path
+					// only meaningful inside a nested repo we can't see from here).
+					// Walk up from its parent dir to a real .git so deletions inside a
+					// nested repo still anchor correctly; if no repo is reachable, gitCwd
+					// stays at the workspace root and git will fail with the hint below
+					// (pathspec is left relative to cwd, which is the best we can do).
+					const root = findGitRoot(path.dirname(resolved));
+					if (root) {
+						gitCwd = root;
+						const rel = path.relative(root, resolved).replace(/\\/g, "/");
+						// Deleted dir -> glob its former Rust contents; deleted file -> literal.
+						pathspec = resolved.endsWith(EXT) ? rel : `:(glob)${rel.replace(/\/+$/, "")}/**/*${EXT}`;
+					} else {
+						pathspec = filePath.endsWith(EXT)
+							? filePath
+							: `:(glob)${filePath.replace(/\/+$/, "")}/**/*${EXT}`;
+					}
+				}
+			}
 			const gitArgs = [...GIT_PREFIX[mode], ...(ref ? [ref] : []), "--", pathspec];
 
-			const result = await pi.exec("git", gitArgs, { signal, timeout: 30000 });
-			if (result.code !== 0) throw new Error(`git failed (${result.code}): ${result.stderr}`);
+			const result = await pi.exec("git", gitArgs, { cwd: gitCwd, signal, timeout: 30000 });
+			if (result.code !== 0) {
+				const hint = /not a git repository/i.test(result.stderr)
+					? " — the working directory is not inside a git repo; pass `path` pointing into the repo (a file or dir)."
+					: "";
+				throw new Error(`git failed (${result.code}): ${result.stderr}${hint}`);
+			}
 
 			const base = { mode, ref, path: filePath };
 			if (!result.stdout.trim()) {

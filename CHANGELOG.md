@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.3 — 2026-06-30
+
+### Fixed
+- **`path` into a nested git repo failed**: `git` was always run from the
+  agent's workspace root (via `pi.exec` without `cwd`), so a `path` pointing
+  into a nested repo — whose workspace root is not itself a git repo (e.g. a
+  crate under `src/...` in a multi-repo workspace) — errored `not a git
+  repository`. The tool now resolves `path`, stats it, sets `cwd` on the git
+  invocation, and rebases the pathspec relative to that directory. Git
+  pathspecs treat `*` as crossing `/`, so plain `*.rs` recurses under the
+  new cwd.
+- **Deleted files in a nested repo now resolve**: when the `path` no longer
+  exists on disk (uncommitted deletion), the tool walks up from the parent
+  dir to the nearest `.git` and anchors there, instead of falling back to
+  the workspace root.
+- **Clearer failure mode**: when the working directory isn't inside any git
+  repo, the thrown error now appends a hint to pass `path` pointing into the
+  repo.
+
 ## 1.0.2 — 2026-06-24
 
 ### Fixed
