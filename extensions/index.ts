@@ -134,7 +134,10 @@ export default function (pi: ExtensionAPI) {
 						gitCwd = path.dirname(resolved);
 						pathspec = path.basename(resolved); // literal file
 					}
-				} catch {
+				} catch (err) {
+					// Re-throw anything that isn't ENOENT (e.g. EACCES) so a permissions
+					// error on a path that exists isn't misread as "deleted file".
+					if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
 					// Path doesn't exist on disk (uncommitted deletion, typo, or a path
 					// only meaningful inside a nested repo we can't see from here).
 					// Walk up from its parent dir to a real .git so deletions inside a
