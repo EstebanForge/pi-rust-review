@@ -1,6 +1,6 @@
 {
   "name": "@estebanforge/pi-rust-review",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Rust code-review tool for Pi. Grades your git diffs against a curated code-smells rubric (each entry: anti-pattern plus idiomatic fix) and returns categorized findings (Bug / Suggestion / Nit / Good pattern) with an Approve or Request-Changes verdict. Not a linter; pairs with cargo clippy.",
   "keywords": [
     "pi-package",
@@ -67,9 +67,9 @@
     "@types/node": "^22.0.0",
     "typescript": "^5.8.0",
     "vitest": "^4.1.7",
-    "@earendil-works/pi-ai": "*",
-    "@earendil-works/pi-coding-agent": "*",
-    "@earendil-works/pi-tui": "*",
+    "@earendil-works/pi-ai": "^0.84.0",
+    "@earendil-works/pi-coding-agent": "^0.84.0",
+    "@earendil-works/pi-tui": "^0.84.0",
     "typebox": "*"
   }
 }
